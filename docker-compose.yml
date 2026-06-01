@@ -1,0 +1,63 @@
+version: '3.9'
+
+services:
+
+  # ─── MongoDB ───────────────────────────────
+  mongo:
+    image: mongo:7-jammy
+    container_name: taxiapp-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: taxiapp
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - taxiapp-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Backend ───────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: taxiapp-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      MONGO_URI: mongodb://mongo:27017/taxiapp
+      PORT: 5000
+    ports:
+      - "5000:5000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - taxiapp-network
+
+  # ─── Frontend ──────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: taxiapp-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - taxiapp-network
+
+# ─── Volumes ─────────────────────────────────
+volumes:
+  mongo_data:
+
+# ─── Network ─────────────────────────────────
+networks:
+  taxiapp-network:
+    driver: bridge
