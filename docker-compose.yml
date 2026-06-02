@@ -1,20 +1,19 @@
-cat > /root/taxi/docker-compose.yml << 'EOF'
-version: '3.9'
-
 services:
 
-  mongo:
-    image: mongo:7-jammy
-    container_name: taxiapp-mongo
+  postgres:
+    image: postgres:16-alpine
+    container_name: taxiapp-postgres
     restart: unless-stopped
     environment:
-      MONGO_INITDB_DATABASE: taxiapp
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: taxiapp
     volumes:
-      - mongo_data:/data/db
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - taxiapp-network
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -25,15 +24,15 @@ services:
       dockerfile: Dockerfile
     container_name: taxiapp-backend
     restart: unless-stopped
-    env_file:
-      - ./backend/.env
     environment:
-      MONGO_URI: mongodb://mongo:27017/taxiapp
-      PORT: 5001
+      PORT: 5002
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/taxiapp
+      JWT_SECRET: ridego_secret_2024
+      NODE_ENV: production
     ports:
-      - "5001:5001"
+      - "5002:5002"
     depends_on:
-      mongo:
+      postgres:
         condition: service_healthy
     networks:
       - taxiapp-network
@@ -45,16 +44,15 @@ services:
     container_name: taxiapp-frontend
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "8082:80"
     depends_on:
       - backend
     networks:
       - taxiapp-network
 
 volumes:
-  mongo_data:
+  postgres_data:
 
 networks:
   taxiapp-network:
     driver: bridge
-EOF
