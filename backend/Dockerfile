@@ -1,21 +1,12 @@
-# ===== BUILD STAGE =====
-FROM node:20-alpine AS builder
+FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
-RUN npm ci --only=production
-
-# ===== RUNTIME STAGE =====
-FROM node:20-alpine AS runner
-
-WORKDIR /app
-
-# Only copy what we need
-COPY --from=builder /app/node_modules ./node_modules
-COPY src ./src
 COPY package.json ./
+RUN npm install --omit=dev
 
-EXPOSE 5000
+COPY src ./src
+
+EXPOSE 5002
 
 CMD ["node", "src/index.js"]
